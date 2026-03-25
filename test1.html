@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Chat Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            background: #3d3226;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: #2a2a2a;
+            align-self: flex-start;
+        }
+
+        .message .file-list {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #242424;
+            border-radius: 25px;
+            align-items: center;
+            position: relative;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .attachment-button {
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .attachment-button:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .attachment-button.active {
+            background: #3d3226;
+            color: #ff6b4a;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-bottom: 10px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            display: none;
+            min-width: 200px;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #e0e0e0;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background: #3a3a3a;
+        }
+
+        .dropdown-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            padding: 8px 0;
+            min-height: 24px;
+            max-height: 200px;
+        }
+
+        textarea::placeholder {
+            color: #666;
+        }
+
+        .send-button {
+            background: #ff6b4a;
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-button:hover {
+            background: #ff5233;
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: scale(1);
+            opacity: 0.6;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-width: 300px;
+        }
+
+        .file-preview {
+            background: #333;
+            padding: 6px 12px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            border: 1px solid #444;
+            animation: slideIn 0.2s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .file-preview .remove {
+            cursor: pointer;
+            color: #ff6b4a;
+            font-weight: bold;
+            font-size: 16px;
+            line-height: 1;
+            padding: 2px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .file-preview .remove:hover {
+            background: rgba(255, 107, 74, 0.2);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: none;
+            z-index: 2000;
+            border-left: 4px solid #ff6b4a;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
+        .notification.show {
+            display: block;
+            animation: slideInRight 0.3s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            border-left-color: #4caf50;
+        }
+
+        .notification.error {
+            border-left-color: #f44336;
+        }
+
+        /* Loading spinner for screenshot */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            z-index: 3000;
+        }
+
+        .loading.active {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: #ff6b4a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                Namaste! 🙏 How can I help you today?
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <div style="position: relative;">
+                    <button class="attachment-button" id="attachmentBtn" aria-label="Add attachment">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <button class="dropdown-item" id="uploadFileBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            Upload File
+                        </button>
+                        <button class="dropdown-item" id="screenshotBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            Take Screenshot
+                        </button>
+                    </div>
+                </div>
+
+                <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.txt">
+                
+                <div class="file-preview-container" id="filePreviewContainer"></div>
+                
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Type a message..." 
+                    rows="1"
+                    aria-label="Message input"
+                ></textarea>
+            </div>
+
+            <button class="send-button" id="sendBtn" aria-label="Send message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Select screen to capture...</span>
+    </div>
+
+    <script>
+        const attachmentBtn = document.getElementById('attachmentBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const uploadFileBtn = document.getElementById('uploadFileBtn');
+        const screenshotBtn = document.getElementById('screenshotBtn');
+        const fileInput = document.getElementById('fileInput');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messages = document.getElementById('messages');
+        const notification = document.getElementById('notification');
+        const filePreviewContainer = document.getElementById('filePreviewContainer');
+        const loading = document.getElementById('loading');
+
+        let uploadedFiles = [];
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        const ALLOWED_TYPES = ['image/', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+        // Toggle dropdown
+        attachmentBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isActive = dropdownMenu.classList.toggle('active');
+            attachmentBtn.classList.toggle('active', isActive);
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!attachmentBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.remove('active');
+                attachmentBtn.classList.remove('active');
+            }
+        });
+
+        // Keyboard support - Escape to close dropdown
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                dropdownMenu.classList.remove('active');
+                attachmentBtn.classList.remove('active');
+            }
+        });
+
+        // Upload file button
+        uploadFileBtn.addEventListener('click', () => {
+            fileInput.click();
+            dropdownMenu.classList.remove('active');
+            attachmentBtn.classList.remove('active');
+        });
+
+        // Validate file type and size
+        function validateFile(file) {
+            if (file.size > MAX_FILE_SIZE) {
+                showNotification(`File too large: ${file.name} (max 10MB)`, 'error');
+                return false;
+            }
+            
+            const isAllowed = ALLOWED_TYPES.some(type => 
+                file.type.startsWith(type) || 
+                (type.includes('word') && (file.name.endsWith('.doc') || file.name.endsWith('.docx')))
+            );
+            
+            if (!isAllowed) {
+                showNotification(`Invalid file type: ${file.name}`, 'error');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            let addedCount = 0;
+            
+            files.forEach(file => {
+                if (validateFile(file)) {
+                    uploadedFiles.push(file);
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount > 0) {
+                displayFilePreview();
+                showNotification(`${addedCount} file(s) uploaded successfully`, 'success');
+            }
+            
+            // Reset file input to allow same file selection again
+            fileInput.value = '';
+        });
+
+        // Display file preview - FIXED: proper index handling
+        function displayFilePreview() {
+            filePreviewContainer.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const preview = document.createElement('div');
+                preview.className = 'file-preview';
+                
+                // Truncate long filenames
+                const displayName = file.name.length > 15 
+                    ? file.name.substring(0, 12) + '...' 
+                    : file.name;
+                
+                preview.innerHTML = `
+                    <span>📎 ${displayName}</span>
+                    <span class="remove" data-index="${index}" title="Remove file">×</span>
+                `;
+                filePreviewContainer.appendChild(preview);
+            });
+
+            // Add remove functionality - FIXED: use event delegation
+            filePreviewContainer.querySelectorAll('.remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = parseInt(e.target.dataset.index);
+                    if (index >= 0 && index < uploadedFiles.length) {
+                        uploadedFiles.splice(index, 1);
+                        displayFilePreview();
+                        updateSendButton();
+                    }
+                });
+            });
+            
+            updateSendButton();
+        }
+
+        // Update send button state
+        function updateSendButton() {
+            const hasContent = messageInput.value.trim() || uploadedFiles.length > 0;
+            sendBtn.disabled = !hasContent;
+        }
+
+        // Screenshot button - FIXED: better error handling and user feedback
+        screenshotBtn.addEventListener('click', async () => {
+            dropdownMenu.classList.remove('active');
+            attachmentBtn.classList.remove('active');
+            
+            try {
+                // Check browser support
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    showNotification('Your browser doesn\'t support screen capture', 'error');
+                    return;
+                }
+
+                loading.classList.add('active');
+                
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { 
+                        cursor: 'always',
+                        displaySurface: 'browser' // Prefer browser tab
+                    },
+                    audio: false
+                });
+
+                loading.classList.remove('active');
+
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                
+                // Wait for video to load
+                await new Promise((resolve, reject) => {
+                    video.onloadedmetadata = resolve;
+                    video.onerror = reject;
+                    video.play();
+                });
+
+                // Small delay to ensure frame is captured
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Stop all tracks immediately
+                stream.getTracks().forEach(track => track.stop());
+
+                // Convert to blob with quality optimization
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        showNotification('Failed to capture screenshot', 'error');
+                        return;
+                    }
+                    
+                    const file = new File([blob], `screenshot_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.png`, { 
+                        type: 'image/png' 
+                    });
+                    
+                    if (validateFile(file)) {
+                        uploadedFiles.push(file);
+                        displayFilePreview();
+                        showNotification('Screenshot captured successfully', 'success');
+                    }
+                }, 'image/png', 0.9);
+
+            } catch (error) {
+                loading.classList.remove('active');
+                if (error.name === 'NotAllowedError') {
+                    showNotification('Screenshot permission denied', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    showNotification('No screen selected', 'error');
+                } else {
+                    showNotification('Screenshot failed: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // Auto-resize textarea - FIXED: better height calculation
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            const newHeight = Math.min(messageInput.scrollHeight, 200);
+            messageInput.style.height = newHeight + 'px';
+            updateSendButton();
+        });
+
+        // Send message - FIXED: proper file display in message
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            
+            if (!text && uploadedFiles.length === 0) return;
+
+            // Create message content
+            let messageContent = '';
+            
+            if (text) {
+                messageContent = text;
+            }
+            
+            if (uploadedFiles.length > 0) {
+                if (text) messageContent += '\n\n';
+                messageContent += `📎 ${uploadedFiles.length} file(s) attached:\n`;
+                uploadedFiles.forEach((file, i) => {
+                    messageContent += `   ${i + 1}. ${file.name} (${formatFileSize(file.size)})\n`;
+                });
+            }
+
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.style.whiteSpace = 'pre-wrap';
+            userMsg.textContent = messageContent;
+            messages.appendChild(userMsg);
+
+            // Clear input and files
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            uploadedFiles = [];
+            filePreviewContainer.innerHTML = '';
+            updateSendButton();
+
+            // Scroll to bottom
+            messages.scrollTop = messages.scrollHeight;
+
+            // Simulate assistant response
+            setTimeout(() => {
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'message assistant';
+                assistantMsg.textContent = 'Message received! How can I help you with that?';
+                messages.appendChild(assistantMsg);
+                messages.scrollTop = messages.scrollHeight;
+            }, 1000);
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Show notification - FIXED: support for different types
+        function showNotification(message, type = 'info') {
+            notification.textContent = message;
+            notification.className = 'notification show ' + type;
+            
+            // Clear any existing timeout
+            if (notification.timeoutId) {
+                clearTimeout(notification.timeoutId);
+            }
+            
+            notification.timeoutId = setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        updateSendButton();
+    </script>
+</body>
+</html>
