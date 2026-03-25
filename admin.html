@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — AI Chat Pro</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0f1117;--surface:#1a1d27;--border:#2a2d3e;--accent:#6c63ff;
+    --accent2:#00d4aa;--text:#e2e8f0;--muted:#64748b;--danger:#ef4444;
+    --success:#22c55e;--warn:#f59e0b;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex}
+  /* Sidebar */
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;height:100vh;z-index:10}
+  .logo{padding:20px 16px;font-size:18px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+  .logo span{font-size:22px}
+  .nav{flex:1;padding:12px 8px;overflow-y:auto}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--muted);transition:.15s;font-size:14px;margin-bottom:2px}
+  .nav-item:hover{background:rgba(108,99,255,.12);color:var(--text)}
+  .nav-item.active{background:rgba(108,99,255,.2);color:var(--accent)}
+  .nav-icon{font-size:18px;width:22px;text-align:center}
+  .sidebar-foot{padding:12px 8px;border-top:1px solid var(--border)}
+  .admin-badge{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:13px;color:var(--muted)}
+  .dot{width:8px;height:8px;background:var(--success);border-radius:50%}
+  /* Main */
+  .main{margin-left:220px;flex:1;padding:28px;overflow-y:auto;min-height:100vh}
+  .page{display:none}
+  .page.active{display:block}
+  h1{font-size:22px;font-weight:700;margin-bottom:4px}
+  .subtitle{color:var(--muted);font-size:14px;margin-bottom:24px}
+  /* Stats cards */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+  .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .stat-value{font-size:28px;font-weight:700}
+  .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+  .stat-card.blue .stat-value{color:#60a5fa}
+  .stat-card.green .stat-value{color:var(--success)}
+  .stat-card.purple .stat-value{color:var(--accent)}
+  .stat-card.orange .stat-value{color:var(--warn)}
+  /* Table */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-size:15px;font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  th{padding:10px 16px;text-align:left;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+  td{padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  /* Badges */
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-basic{background:rgba(100,116,139,.2);color:#94a3b8}
+  .badge-pro{background:rgba(96,165,250,.15);color:#60a5fa}
+  .badge-enterprise{background:rgba(108,99,255,.2);color:#a78bfa}
+  .badge-active{background:rgba(34,197,94,.15);color:var(--success)}
+  .badge-suspended{background:rgba(239,68,68,.15);color:var(--danger)}
+  .badge-admin{background:rgba(245,158,11,.15);color:var(--warn)}
+  /* Buttons */
+  .btn{padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#5a52d5}
+  .btn-danger{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+  .btn-danger:hover{background:rgba(239,68,68,.25)}
+  .btn-sm{padding:4px 10px;font-size:12px}
+  .btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:hover{background:rgba(255,255,255,.1)}
+  /* Token bar */
+  .token-bar{width:100px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+  .token-fill{height:100%;border-radius:3px;background:var(--accent)}
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:460px;max-width:95vw;padding:24px}
+  .modal h2{font-size:17px;font-weight:700;margin-bottom:20px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form-grid.full{grid-template-columns:1fr}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:7px;font-size:13px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  textarea{resize:vertical;min-height:80px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+  /* Search */
+  .search-bar{display:flex;gap:8px;margin-bottom:16px}
+  .search-bar input{flex:1}
+  /* Settings */
+  .settings-grid{display:grid;gap:16px}
+  .setting-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .setting-info .label{font-size:14px;font-weight:500}
+  .setting-info .desc{font-size:12px;color:var(--muted);margin-top:2px}
+  .setting-row input,.setting-row select{width:200px}
+  /* Chart */
+  .chart-bars{display:flex;align-items:flex-end;gap:4px;height:80px;padding:0 4px}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .bar{width:100%;background:var(--accent);border-radius:3px 3px 0 0;opacity:.8;transition:.3s;min-height:2px}
+  .bar-label{font-size:9px;color:var(--muted)}
+  /* Loading */
+  .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-row td{text-align:center;padding:32px;color:var(--muted)}
+  /* Toast */
+  #toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:13px;z-index:200;transform:translateY(60px);opacity:0;transition:.3s;pointer-events:none}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.success{background:#166534;border:1px solid var(--success);color:#86efac}
+  #toast.error{background:#7f1d1d;border:1px solid var(--danger);color:#fca5a5}
+  /* Login */
+  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:360px}
+  .login-logo{font-size:24px;font-weight:800;color:var(--accent);text-align:center;margin-bottom:4px}
+  .login-sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:28px}
+  .login-box .btn-primary{width:100%;padding:10px;font-size:14px;margin-top:8px}
+  .err-msg{color:var(--danger);font-size:13px;text-align:center;margin-top:10px;display:none}
+  .plan-pills{display:flex;gap:6px}
+  .plan-pill{padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;cursor:pointer;color:var(--muted)}
+  .plan-pill.active{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.1)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">⚡ AI Chat Pro</div>
+    <div class="login-sub">Admin Panel</div>
+    <div>
+      <label>Email</label>
+      <input id="loginEmail" type="email" value="admin@aichat.com" placeholder="admin@aichat.com">
+    </div>
+    <div style="margin-top:12px">
+      <label>Password</label>
+      <input id="loginPass" type="password" placeholder="Password">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <div id="loginErr" class="err-msg"></div>
+  </div>
+</div>
+
+<!-- ADMIN SHELL (hidden until login) -->
+<div id="adminShell" style="display:none;width:100%">
+  <div class="sidebar">
+    <div class="logo"><span>⚡</span> AI Chat Pro</div>
+    <div class="nav">
+      <div class="nav-item active" onclick="goto('dash')"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="goto('users')"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-item" onclick="goto('usage')"><span class="nav-icon">📈</span> Usage</div>
+      <div class="nav-item" onclick="goto('settings')"><span class="nav-icon">⚙️</span> Settings</div>
+    </div>
+    <div class="sidebar-foot">
+      <div class="admin-badge"><div class="dot"></div> <span id="adminName">Admin</span></div>
+      <div class="nav-item" onclick="logout()" style="margin-top:4px"><span class="nav-icon">🚪</span> Logout</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="dashPage" class="page active">
+      <h1>Dashboard</h1>
+      <div class="subtitle">System overview</div>
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub">Registered accounts</div></div>
+        <div class="stat-card green"><div class="stat-label">Total Requests</div><div class="stat-value" id="statReqs">—</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card purple"><div class="stat-label">Tokens Used</div><div class="stat-value" id="statTokens">—</div><div class="stat-sub">All time total</div></div>
+        <div class="stat-card orange"><div class="stat-label">Today</div><div class="stat-value" id="statToday">—</div><div class="stat-sub">Requests today</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Daily Requests (14 days)</div></div>
+          <div style="padding:16px 20px 8px">
+            <div id="chartBars" class="chart-bars"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Plans</div></div>
+          <div style="padding:16px 20px" id="plansBreakdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="usersPage" class="page">
+      <h1>Users</h1>
+      <div class="subtitle">Manage all registered users</div>
+      <div class="search-bar">
+        <input id="userSearch" placeholder="Search by name or email…" oninput="filterUsers()">
+        <button class="btn btn-primary" onclick="openAddUser()">+ Add User</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Tokens</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="usersTable"><tr class="loading-row"><td colspan="7"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USAGE -->
+    <div id="usagePage" class="page">
+      <h1>Usage Analytics</h1>
+      <div class="subtitle">Token consumption & activity</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card blue"><div class="stat-label">7-Day Requests</div><div class="stat-value" id="u7Reqs">—</div></div>
+        <div class="stat-card purple"><div class="stat-label">7-Day Tokens</div><div class="stat-value" id="u7Tokens">—</div></div>
+        <div class="stat-card green"><div class="stat-label">Active Users (7d)</div><div class="stat-value" id="u7Users">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Top Users by Token Usage</div></div>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Tokens Used (7d)</th><th>Requests</th></tr></thead>
+          <tbody id="topUsersTable"><tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settingsPage" class="page">
+      <h1>Settings</h1>
+      <div class="subtitle">Configure AI & platform settings</div>
+      <div id="settingsForm" class="settings-grid"></div>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add User</h2>
+    <div class="form-grid">
+      <div><label>Name</label><input id="uName" placeholder="Full name"></div>
+      <div><label>Email</label><input id="uEmail" type="email" placeholder="email@example.com"></div>
+      <div><label>Password</label><input id="uPass" type="password" placeholder="Leave blank to keep"></div>
+      <div><label>Plan</label>
+        <select id="uPlan">
+          <option value="basic">Basic (5M tokens)</option>
+          <option value="pro">Pro (20M tokens)</option>
+          <option value="enterprise">Enterprise (100M tokens)</option>
+        </select>
+      </div>
+      <div><label>Tokens (custom)</label><input id="uTokens" type="number" placeholder="Leave blank = plan default"></div>
+      <div><label>Status</label>
+        <select id="uStatus">
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+// Change this to your deployed worker URL
+const API = localStorage.getItem('workerUrl') || 'https://aichat-worker.YOUR_SUBDOMAIN.workers.dev';
+let TOKEN = localStorage.getItem('adminToken') || '';
+let allUsers = [];
+let editingId = null;
+let settingsData = {};
+
+// ── Init ────────────────────────────────────────────────────
+(async () => {
+  if (TOKEN) {
+    try {
+      const r = await apiFetch('/api/auth/me');
+      if (r.role !== 'admin') throw new Error('not admin');
+      document.getElementById('adminName').textContent = r.name;
+      showAdmin();
+      loadDash();
+    } catch { TOKEN = ''; localStorage.removeItem('adminToken'); }
+  }
+})();
+
+function showAdmin() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('adminShell').style.display = 'flex';
+}
+
+// ── API helper ───────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const url = API + path;
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const r = await fetch(url, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+
+// ── Login ────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  try {
+    // Check if worker URL needs to be set
+    const workerUrl = prompt('Enter your Worker URL (e.g. https://aichat-worker.xyz.workers.dev):', API);
+    if (workerUrl) { localStorage.setItem('workerUrl', workerUrl); location.reload(); return; }
+    const d = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    if (d.user.role !== 'admin') { errEl.textContent = 'Not an admin account'; errEl.style.display = 'block'; return; }
+    TOKEN = d.token;
+    localStorage.setItem('adminToken', TOKEN);
+    document.getElementById('adminName').textContent = d.user.name;
+    showAdmin();
+    loadDash();
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+function logout() {
+  TOKEN = ''; localStorage.removeItem('adminToken');
+  document.getElementById('adminShell').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
+// ── Navigation ───────────────────────────────────────────────
+function goto(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(page + 'Page').classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (page === 'dash') loadDash();
+  if (page === 'users') loadUsers();
+  if (page === 'usage') loadUsage();
+  if (page === 'settings') loadSettings();
+}
+
+// ── Dashboard ────────────────────────────────────────────────
+async function loadDash() {
+  try {
+    const s = await apiFetch('/api/admin/stats');
+    document.getElementById('statUsers').textContent = fmt(s.totalUsers);
+    document.getElementById('statReqs').textContent = fmt(s.totalRequests);
+    document.getElementById('statTokens').textContent = fmtM(s.totalTokens);
+    document.getElementById('statToday').textContent = fmt(s.todayRequests);
+
+    // Chart
+    const bars = document.getElementById('chartBars');
+    const daily = s.daily || [];
+    const max = Math.max(...daily.map(d => d.requests), 1);
+    bars.innerHTML = daily.slice(-14).map(d => {
+      const h = Math.max(4, Math.round((d.requests / max) * 76));
+      const label = d.date.slice(5);
+      return `<div class="bar-wrap"><div class="bar" style="height:${h}px" title="${d.requests} req"></div><div class="bar-label">${label}</div></div>`;
+    }).join('');
+
+    // Plans
+    const pb = document.getElementById('plansBreakdown');
+    pb.innerHTML = (s.plans || []).map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span class="badge badge-${p.plan}">${p.plan}</span>
+        <span style="font-weight:600">${p.count} users</span>
+      </div>`).join('');
+  } catch (e) { toast('Failed to load stats: ' + e.message, 'error'); }
+}
+
+// ── Users ────────────────────────────────────────────────────
+async function loadUsers() {
+  document.getElementById('usersTable').innerHTML = '<tr class="loading-row"><td colspan="7"><div class="spinner"></div></td></tr>';
+  try {
+    allUsers = await apiFetch('/api/admin/users');
+    renderUsers(allUsers);
+  } catch (e) { toast('Failed to load users', 'error'); }
+}
+
+function renderUsers(users) {
+  const tb = document.getElementById('usersTable');
+  if (!users.length) { tb.innerHTML = '<tr class="loading-row"><td colspan="7">No users found</td></tr>'; return; }
+  tb.innerHTML = users.map(u => {
+    const pct = u.max_tokens > 0 ? Math.round((u.tokens / u.max_tokens) * 100) : 0;
+    return `<tr>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td style="color:var(--muted)">${esc(u.email)}</td>
+      <td><span class="badge badge-${u.plan}">${u.plan}</span></td>
+      <td>
+        <div class="token-bar"><div class="token-fill" style="width:${pct}%"></div></div>
+        <span style="margin-left:6px;color:var(--muted);font-size:11px">${fmtM(u.tokens)}</span>
+      </td>
+      <td>
+        <span class="badge badge-${u.status}">${u.status}</span>
+        ${u.role === 'admin' ? '<span class="badge badge-admin" style="margin-left:4px">admin</span>' : ''}
+      </td>
+      <td style="color:var(--muted)">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick='openEditUser(${JSON.stringify(u)})'>Edit</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteUser('${u.id}','${esc(u.name)}')">Del</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('userSearch').value.toLowerCase();
+  renderUsers(allUsers.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+}
+
+function openAddUser() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add User';
+  ['uName','uEmail','uPass','uTokens'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('uPlan').value = 'basic';
+  document.getElementById('uStatus').value = 'active';
+  document.getElementById('userModal').classList.add('open');
+}
+
+function openEditUser(u) {
+  editingId = u.id;
+  document.getElementById('modalTitle').textContent = 'Edit User';
+  document.getElementById('uName').value = u.name;
+  document.getElementById('uEmail').value = u.email;
+  document.getElementById('uPass').value = '';
+  document.getElementById('uPlan').value = u.plan;
+  document.getElementById('uTokens').value = u.tokens;
+  document.getElementById('uStatus').value = u.status;
+  document.getElementById('userModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('userModal').classList.remove('open'); }
+
+async function saveUser() {
+  const body = {
+    name: document.getElementById('uName').value,
+    email: document.getElementById('uEmail').value,
+    plan: document.getElementById('uPlan').value,
+    status: document.getElementById('uStatus').value,
+  };
+  const tokens = document.getElementById('uTokens').value;
+  if (tokens) body.tokens = parseInt(tokens);
+  const pass = document.getElementById('uPass').value;
+  if (pass) body.password = pass;
+
+  try {
+    if (editingId) {
+      await apiFetch('/api/admin/users/' + editingId, { method: 'PUT', body: JSON.stringify(body) });
+      toast('User updated', 'success');
+    } else {
+      if (!pass) { toast('Password required for new user', 'error'); return; }
+      await apiFetch('/api/admin/users', { method: 'POST', body: JSON.stringify(body) });
+      toast('User created', 'success');
+    }
+    closeModal();
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch('/api/admin/users/' + id, { method: 'DELETE' });
+    toast('User deleted', 'success');
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Usage ────────────────────────────────────────────────────
+async function loadUsage() {
+  try {
+    const users = await apiFetch('/api/admin/users');
+    // Fetch each user's usage (7 days) from the usage route isn't admin-facing, so compute from users list
+    // Instead use stats for summary
+    const s = await apiFetch('/api/admin/stats');
+    const daily7 = (s.daily || []).slice(-7);
+    const reqs7 = daily7.reduce((a, d) => a + d.requests, 0);
+    const tok7 = daily7.reduce((a, d) => a + (d.tokens || 0), 0);
+    document.getElementById('u7Reqs').textContent = fmt(reqs7);
+    document.getElementById('u7Tokens').textContent = fmtM(tok7);
+    // Active users = users with recent last_login
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+    const active = users.filter(u => u.last_login && u.last_login.slice(0,10) >= sevenDaysAgo);
+    document.getElementById('u7Users').textContent = active.length;
+
+    // Top users by tokens consumed = lowest remaining
+    const sorted = [...users].sort((a, b) => (a.max_tokens - a.tokens) - (b.max_tokens - b.tokens) > 0 ? -1 : 1);
+    const tb = document.getElementById('topUsersTable');
+    tb.innerHTML = sorted.slice(0, 20).map(u => {
+      const used = u.max_tokens - u.tokens;
+      return `<tr>
+        <td><strong>${esc(u.name)}</strong></td>
+        <td style="color:var(--muted)">${esc(u.email)}</td>
+        <td><span class="badge badge-${u.plan}">${u.plan}</span></td>
+        <td>${fmtM(Math.max(0, used))}</td>
+        <td>—</td>
+      </tr>`;
+    }).join('');
+  } catch (e) { toast('Failed to load usage: ' + e.message, 'error'); }
+}
+
+// ── Settings ──────────────────────────────────────────────────
+const SETTING_META = {
+  system_prompt: { label: 'System Prompt', desc: 'Default AI personality', type: 'textarea' },
+  basic_tokens: { label: 'Basic Plan Tokens', desc: 'Token limit for basic users', type: 'number' },
+  pro_tokens: { label: 'Pro Plan Tokens', desc: 'Token limit for pro users', type: 'number' },
+  enterprise_tokens: { label: 'Enterprise Plan Tokens', desc: 'Token limit for enterprise', type: 'number' },
+  premium_multiplier: { label: 'Premium Model Multiplier', desc: 'Token cost multiplier for premium models', type: 'number' },
+  premium_models: { label: 'Premium Models', desc: 'Comma-separated model IDs (cost x multiplier)', type: 'text' },
+  site_name: { label: 'Site Name', desc: 'Display name of the platform', type: 'text' },
+};
+
+async function loadSettings() {
+  try {
+    settingsData = await apiFetch('/api/admin/settings');
+    const form = document.getElementById('settingsForm');
+    form.innerHTML = Object.entries(SETTING_META).map(([key, meta]) => {
+      const val = settingsData[key] || '';
+      const input = meta.type === 'textarea'
+        ? `<textarea id="s_${key}" rows="3">${esc(val)}</textarea>`
+        : `<input id="s_${key}" type="${meta.type}" value="${esc(val)}">`;
+      return `<div class="setting-row">
+        <div class="setting-info"><div class="label">${meta.label}</div><div class="desc">${meta.desc}</div></div>
+        <div style="min-width:240px">${input}</div>
+      </div>`;
+    }).join('');
+    // Worker URL setting
+    form.innerHTML += `<div class="setting-row">
+      <div class="setting-info"><div class="label">Worker URL</div><div class="desc">Your deployed worker endpoint (local only)</div></div>
+      <div style="min-width:240px"><input id="s_workerUrl" type="text" value="${esc(localStorage.getItem('workerUrl') || '')}"></div>
+    </div>`;
+  } catch (e) { toast('Failed to load settings', 'error'); }
+}
+
+async function saveSettings() {
+  const data = {};
+  Object.keys(SETTING_META).forEach(key => {
+    const el = document.getElementById('s_' + key);
+    if (el) data[key] = el.value;
+  });
+  const workerEl = document.getElementById('s_workerUrl');
+  if (workerEl && workerEl.value) { localStorage.setItem('workerUrl', workerEl.value); }
+  try {
+    await apiFetch('/api/admin/settings', { method: 'POST', body: JSON.stringify(data) });
+    toast('Settings saved!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function fmt(n) { return Number(n || 0).toLocaleString(); }
+function fmtM(n) {
+  n = Number(n || 0);
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return String(n);
+}
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 3000);
+}
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+});
+</script>
+</body>
+</html>
