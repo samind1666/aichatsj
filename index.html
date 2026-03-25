@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Chat Pro — Cloudflare Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   THEME VARIABLES
+═══════════════════════════════════════════════ */
+:root {
+  --bg:       #080808;
+  --bg2:      #0d0d0d;
+  --bg3:      #111;
+  --bg4:      #161616;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.11);
+  --text:     #e2e2e2;
+  --text2:    #888;
+  --text3:    #444;
+  --accent:   #ff7c5c;
+  --accent2:  #ff4d8f;
+  --sidebar:  #090909;
+  --input-bg: rgba(255,255,255,0.04);
+  --font:     'Instrument Sans', system-ui, sans-serif;
+  --mono:     'Geist Mono', monospace;
+}
+.light {
+  --bg:       #fafafa;
+  --bg2:      #f2f2f2;
+  --bg3:      #ebebeb;
+  --bg4:      #e5e5e5;
+  --border:   rgba(0,0,0,0.07);
+  --border2:  rgba(0,0,0,0.13);
+  --text:     #111;
+  --text2:    #555;
+  --text3:    #aaa;
+  --sidebar:  #f5f5f5;
+  --input-bg: rgba(0,0,0,0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+body { font-family: var(--font); color: var(--text); font-size: 14px; line-height: 1.6; }
+
+button { font-family: var(--font); cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: var(--font); }
+a { color: var(--accent); text-decoration: none; }
+svg { display: block; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════
+   LAYOUT — 3-PANEL
+═══════════════════════════════════════════════ */
+#app {
+  display: flex;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  transition: background .25s, color .25s;
+}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════ */
+#sidebar {
+  width: 240px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  transition: width .25s ease, min-width .25s ease, transform .25s ease;
+  overflow: hidden;
+  z-index: 40;
+}
+#sidebar.collapsed { width: 0; min-width: 0; }
+
+.sb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-mark {
+  width: 26px; height: 26px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #fff; font-weight: 600;
+}
+.logo-text { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; letter-spacing: -.2px; }
+
+.new-btn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.new-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+
+.sb-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  padding: 13px 14px 5px;
+}
+
+.sb-history { flex: 1; overflow-y: auto; padding: 3px 8px; }
+.sb-history::-webkit-scrollbar { width: 3px; }
+.sb-history::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.hist-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+  transition: all .15s;
+  display: flex; align-items: center; gap: 7px;
+}
+.hist-item:hover { background: var(--bg3); color: var(--text); }
+.hist-item.active { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+.hist-item svg { flex-shrink: 0; opacity: .5; }
+
+.sb-bottom {
+  padding: 10px 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Token bar */
+.token-bar-wrap { padding: 8px 4px 10px; }
+.token-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px; color: var(--text2); }
+.token-bar-row span:last-child { color: var(--text3); font-size: 10px; }
+.token-bar-bg { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.token-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.user-row:hover { background: var(--bg3); }
+.avatar {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-plan { font-size: 10px; color: var(--accent); font-weight: 500; }
+.sb-actions { display: flex; gap: 4px; }
+.sb-icon-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3);
+  transition: all .15s;
+}
+.sb-icon-btn:hover { background: var(--bg3); color: var(--text2); }
+
+/* ═══════════════════════════════════════════════
+   MAIN CHAT
+═══════════════════════════════════════════════ */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  min-width: 0;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.menu-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--input-bg);
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.menu-btn:hover { background: var(--bg3); color: var(--text); }
+
+.model-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px; font-weight: 500;
+  transition: all .15s;
+}
+.model-btn:hover { background: var(--bg3); border-color: var(--border2); }
+.model-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.model-dot.free { background: #22c55e; }
+.model-dot.premium { background: var(--accent); }
+.model-mult {
+  font-size: 10px; font-weight: 700;
+  background: rgba(255,124,92,.18);
+  color: var(--accent);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.hdr-balance {
+  font-size: 11px; color: var(--text2);
+  background: var(--bg3);
+  padding: 3px 9px; border-radius: 6px;
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+}
+.hdr-icon-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; font-size: 15px;
+}
+.hdr-icon-btn:hover { background: var(--bg3); color: var(--text); }
+
+/* Messages area */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+.messages-inner { padding: 24px 0; }
+
+/* Welcome screen */
+.welcome {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 70%;
+  padding: 40px 20px;
+  text-align: center;
+}
+.welcome-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #fff;
+  margin: 0 auto 18px;
+  box-shadow: 0 8px 32px rgba(255,124,92,.25);
+}
+.welcome h2 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; letter-spacing: -.3px; }
+.welcome p { font-size: 14px; color: var(--text2); margin-bottom: 28px; }
+.suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 480px; }
+.suggestion {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 13px;
+  transition: all .15s;
+}
+.suggestion:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+
+/* Messages */
+.msg { display: flex; padding: 8px 20px; gap: 12px; max-width: 760px; margin: 0 auto; width: 100%; }
+.msg:hover .msg-actions { opacity: 1; }
+.msg-user { flex-direction: row-reverse; }
+.msgs-inner { display: flex; flex-direction: column; padding: 24px 0; }
+.msg-user .bubble {
+  background: rgba(255,124,92,.1);
+  border: 1px solid rgba(255,124,92,.15);
+  color: var(--text);
+  max-width: 70%;
+  border-radius: 16px 4px 16px 16px;
+}
+.msg-assistant .bubble {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  max-width: 80%;
+  border-radius: 4px 16px 16px 16px;
+}
+.bubble {
+  padding: 11px 15px;
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: break-word;
+}
+.bubble p { margin-bottom: 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble code {
+  font-family: var(--mono);
+  background: rgba(255,255,255,.07);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+.bubble pre {
+  background: rgba(0,0,0,.4);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.bubble pre code { background: none; padding: 0; font-size: 12px; }
+.bubble h1,.bubble h2,.bubble h3 { margin: 10px 0 4px; font-weight: 600; }
+.bubble ul,.bubble ol { padding-left: 20px; margin: 6px 0; }
+.bubble li { margin-bottom: 3px; }
+
+.msg-actions {
+  opacity: 0;
+  display: flex; gap: 3px; align-items: flex-end;
+  transition: opacity .15s;
+  padding-bottom: 4px;
+  flex-shrink: 0;
+}
+.action-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3);
+  transition: all .15s;
+}
+.action-btn:hover { background: var(--bg3); color: var(--text2); }
+.action-btn.active { color: var(--accent); }
+
+/* Thinking */
+.thinking { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.thinking span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  animation: bounce .8s ease-in-out infinite;
+}
+.thinking span:nth-child(2) { animation-delay: .15s; }
+.thinking span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+/* Cursor blink */
+.cursor {
+  display: inline-block;
+  width: 2px; height: 14px;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Input */
+.input-area {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 14px;
+  flex-shrink: 0;
+}
+.input-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.input-wrap {
+  display: flex; align-items: flex-end; gap: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 10px 10px 10px 14px;
+  transition: border-color .15s;
+}
+.input-wrap:focus-within { border-color: rgba(255,124,92,.4); }
+.chat-input {
+  flex: 1; resize: none; background: none; border: none; outline: none;
+  color: var(--text); font-size: 14px; line-height: 1.6;
+  max-height: 160px; min-height: 22px;
+}
+.chat-input::placeholder { color: var(--text3); }
+.send-btn {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.send-btn:hover:not(:disabled) { background: #ff5c3a; transform: scale(1.05); }
+.send-btn:disabled { background: var(--bg3); color: var(--text3); cursor: not-allowed; transform: none; }
+.send-btn.stop { background: #ef4444; }
+
+.input-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 2px 0;
+}
+.input-model {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text2); cursor: pointer;
+  padding: 2px 6px; border-radius: 5px;
+  transition: all .15s;
+}
+.input-model:hover { background: var(--bg3); color: var(--text); }
+.input-hint { font-size: 11px; color: var(--text3); }
+
+/* ═══════════════════════════════════════════════
+   MODEL SHEET
+═══════════════════════════════════════════════ */
+#model-sheet {
+  position: fixed; inset: 0; z-index: 200;
+  display: none;
+}
+#model-sheet.open { display: block; }
+.sheet-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+}
+.sheet-panel {
+  position: absolute;
+  top: 52px; left: 50%;
+  transform: translateX(-50%);
+  width: 420px; max-height: 70vh;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: sheetIn .18s ease;
+}
+@keyframes sheetIn { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+.sheet-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.sheet-header span { font-size: 13px; font-weight: 600; color: var(--text); }
+.sheet-search {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 6px 10px;
+  color: var(--text); font-size: 12px; outline: none;
+}
+.sheet-close {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); font-size: 14px;
+  transition: all .15s;
+}
+.sheet-close:hover { background: var(--bg3); color: var(--text); }
+.sheet-list { overflow-y: auto; padding: 8px; }
+.sheet-list::-webkit-scrollbar { width: 4px; }
+.sheet-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.provider-group { margin-bottom: 10px; }
+.provider-label {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .8px;
+  padding: 4px 8px 6px;
+}
+.model-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  cursor: pointer; transition: background .12s;
+}
+.model-item:hover { background: var(--bg3); }
+.model-item.selected { background: rgba(255,124,92,.1); }
+.model-dot-sm { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.model-name { flex: 1; font-size: 13px; color: var(--text); }
+.model-badge {
+  font-size: 10px; font-weight: 600;
+  background: rgba(255,124,92,.15);
+  color: var(--accent);
+  padding: 2px 6px; border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   SETTINGS PANEL
+═══════════════════════════════════════════════ */
+#settings {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; background: rgba(0,0,0,.65);
+  backdrop-filter: blur(6px);
+}
+#settings.open { display: flex; align-items: center; justify-content: center; }
+.sp-modal {
+  width: 680px; height: 520px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 18px;
+  display: flex; overflow: hidden;
+  animation: spIn .2s ease;
+}
+@keyframes spIn { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+.sp-sidebar {
+  width: 195px; min-width: 195px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 16px 10px;
+}
+.sp-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.sp-header-row span { font-size: 13px; font-weight: 600; color: var(--text); }
+.sp-close { color: var(--text3); font-size: 16px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; transition: all .15s; }
+.sp-close:hover { background: var(--bg3); color: var(--text2); }
+.sp-section-label {
+  font-size: 9px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .9px;
+  padding: 8px 8px 4px;
+}
+.sp-tab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; color: var(--text2);
+  transition: all .15s; width: 100%;
+  cursor: pointer; text-align: left;
+}
+.sp-tab:hover { background: var(--bg3); color: var(--text); }
+.sp-tab.active { background: rgba(255,124,92,.1); color: var(--accent); }
+.sp-tab svg { flex-shrink: 0; }
+.sp-tab-arrow { margin-left: auto; opacity: .4; }
+.sp-version { font-size: 10px; color: var(--text3); padding: 12px 10px 0; margin-top: auto; }
+
+.sp-content { flex: 1; overflow-y: auto; padding: 20px; }
+.sp-content::-webkit-scrollbar { width: 4px; }
+.sp-content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.sp-pane { display: none; }
+.sp-pane.active { display: block; }
+
+/* Profile pane */
+.profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; background: var(--bg); border-radius: 12px;
+  border: 1px solid var(--border); margin-bottom: 16px;
+}
+.profile-av {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.profile-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.profile-meta { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.plan-badge {
+  font-size: 10px; font-weight: 700;
+  background: rgba(255,124,92,.15); color: var(--accent);
+  padding: 2px 7px; border-radius: 4px; text-transform: uppercase;
+}
+.profile-since { font-size: 11px; color: var(--text3); }
+
+.stat-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-card {
+  overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+}
+.stat-card-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+.stat-card-val { font-size: 20px; font-weight: 700; color: var(--text); font-family: var(--mono); margin: 2px 0 8px; }
+
+/* Form */
+.sp-form-group { margin-bottom: 14px; }
+.sp-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.sp-input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 9px; color: var(--text); font-size: 13px; outline: none;
+  transition: border-color .15s;
+}
+.sp-input:focus { border-color: rgba(255,124,92,.5); }
+.sp-btn {
+  padding: 9px 18px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 600;
+  transition: all .15s;
+}
+.sp-btn:hover { background: #ff5c3a; }
+
+/* Plan cards */
+.plan-cards { display: flex; flex-direction: column; gap: 8px; }
+.plan-card {
+  padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border2); background: var(--bg);
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; gap: 12px;
+}
+.plan-card:hover { border-color: var(--border2); background: var(--bg3); }
+.plan-card.current { border-color: rgba(255,124,92,.4); background: rgba(255,124,92,.06); }
+.plan-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.plan-tokens { font-size: 11px; color: var(--text2); }
+.plan-price { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+
+/* Usage pane */
+.usage-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+.ustat {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+  text-align: center;
+}
+.ustat-val { font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+.ustat-label { font-size: 10px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .5px; }
+.chart-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative; }
+.chart-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+
+/* Auth button */
+.oauth-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 10px;
+  border: 1px solid var(--border2); background: var(--bg);
+  width: 100%; font-size: 13px; color: var(--text);
+  transition: all .15s; cursor: pointer; margin-bottom: 8px;
+}
+.oauth-btn:hover { background: var(--bg3); border-color: var(--border2); }
+.oauth-icon { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+
+/* ═══════════════════════════════════════════════
+   ADMIN PANEL
+═══════════════════════════════════════════════ */
+#admin {
+  position: fixed; inset: 0; z-index: 150;
+  display: none; background: var(--bg);
+  overflow: hidden;
+}
+#admin.open { display: flex; }
+.admin-sidebar {
+  width: 220px; min-width: 220px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 16px 10px;
+}
+.admin-logo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 6px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.admin-logo-badge {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #7c5cff, #ff4d8f);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #fff; font-weight: 700;
+}
+.admin-logo-text { font-size: 13px; font-weight: 600; color: var(--text); }
+.admin-nav-label {
+  font-size: 9px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .9px;
+  padding: 8px 8px 4px;
+}
+.admin-nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; color: var(--text2);
+  cursor: pointer; transition: all .15s; margin-bottom: 2px;
+}
+.admin-nav-item:hover { background: var(--bg3); color: var(--text); }
+.admin-nav-item.active { background: rgba(124,92,255,.12); color: #a78bfa; }
+.admin-exit {
+  margin-top: auto; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; color: var(--text2);
+  cursor: pointer; transition: all .15s;
+}
+.admin-exit:hover { background: rgba(239,68,68,.1); color: #ef4444; }
+
+.admin-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.admin-header {
+  padding: 0 24px; height: 52px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.admin-header h2 { font-size: 15px; font-weight: 600; color: var(--text); }
+.admin-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.admin-content::-webkit-scrollbar { width: 4px; }
+.admin-content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.admin-pane { display: none; }
+.admin-pane.active { display: block; }
+
+/* Admin stats cards */
+.admin-stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.astat {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+}
+.astat-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; margin-bottom: 10px;
+}
+.astat-val { font-size: 22px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+.astat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.astat-trend { font-size: 10px; margin-top: 4px; }
+.astat-trend.up { color: #22c55e; }
+.astat-trend.down { color: #ef4444; }
+
+.admin-section-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 10px; }
+
+/* Users table */
+.users-table { width: 100%; border-collapse: collapse; }
+.users-table th {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .7px;
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.users-table td {
+  padding: 10px 12px; font-size: 13px; color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.users-table tr:hover td { background: var(--bg3); }
+.user-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+}
+.tag-basic { background: rgba(136,136,136,.15); color: var(--text2); }
+.tag-pro { background: rgba(255,124,92,.15); color: var(--accent); }
+.tag-enterprise { background: rgba(124,92,255,.15); color: #a78bfa; }
+.tag-active { background: rgba(34,197,94,.15); color: #22c55e; }
+.tag-suspended { background: rgba(239,68,68,.15); color: #ef4444; }
+
+/* Settings form admin */
+.admin-form-group { margin-bottom: 16px; }
+.admin-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; display: block; }
+.admin-input {
+  width: 100%; padding: 10px 12px;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 9px; color: var(--text); font-size: 13px; outline: none;
+  transition: border-color .15s;
+}
+.admin-input:focus { border-color: rgba(124,92,255,.5); }
+.admin-textarea { min-height: 80px; resize: vertical; font-family: var(--mono); }
+.admin-btn {
+  padding: 9px 20px; border-radius: 9px;
+  background: linear-gradient(135deg, #7c5cff, #a855f7);
+  color: #fff; font-size: 13px; font-weight: 600;
+  transition: all .15s;
+}
+.admin-btn:hover { opacity: .9; transform: translateY(-1px); }
+.admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 16px;
+}
+.admin-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+
+/* Login page */
+#login-screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  z-index: 500;
+}
+.login-card {
+  width: 360px; padding: 36px 32px;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 20px; text-align: center;
+}
+.login-logo {
+  width: 52px; height: 52px; border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #fff; margin: 0 auto 18px;
+}
+.login-card h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; letter-spacing: -.3px; }
+.login-card p { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+.login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+.login-divider span { font-size: 11px; color: var(--text3); }
+.login-divider::before, .login-divider::after { content:''; flex:1; height:1px; background: var(--border); }
+.login-input-wrap { margin-bottom: 10px; }
+.login-input {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px; outline: none;
+  transition: border-color .15s;
+}
+.login-input:focus { border-color: rgba(255,124,92,.4); }
+.login-btn {
+  width: 100%; padding: 11px;
+  border-radius: 10px; background: var(--accent);
+  color: #fff; font-size: 14px; font-weight: 600;
+  transition: all .15s; margin-top: 4px;
+}
+.login-btn:hover { background: #ff5c3a; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  #sidebar { position: fixed; transform: translateX(-100%); top:0;left:0;bottom:0; }
+  #sidebar.mobile-open { transform: translateX(0); }
+  .sp-modal { width: 95vw; height: 90vh; flex-direction: column; }
+  .sp-sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 8px; }
+  .sp-section-label { display: none; }
+  .admin-stat-row { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">✦</div>
+    <h2>AI Chat Pro</h2>
+    <p>Multiple AI models, ek jagah</p>
+
+    <!-- Tabs -->
+    <div style="display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:20px;gap:2px">
+      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:7px;border-radius:8px;font-size:13px;font-weight:600;background:var(--bg2);color:var(--text);border:none;cursor:pointer;transition:all .15s">Login</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:7px;border-radius:8px;font-size:13px;font-weight:500;background:transparent;color:var(--text2);border:none;cursor:pointer;transition:all .15s">Sign Up</button>
+    </div>
+
+    <!-- OAuth buttons -->
+    <button class="oauth-btn" onclick="oauthLogin('google')">
+      <div class="oauth-icon" style="background:#fff">
+        <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      Google se continue karo
+    </button>
+    <button class="oauth-btn" onclick="oauthLogin('github')">
+      <div class="oauth-icon" style="background:#24292f">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+      </div>
+      GitHub se continue karo
+    </button>
+
+    <div class="login-divider"><span>ya email se</span></div>
+
+    <!-- Error message -->
+    <div id="auth-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#ef4444;margin-bottom:10px;text-align:left"></div>
+    <!-- Success message -->
+    <div id="auth-success" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#22c55e;margin-bottom:10px;text-align:left"></div>
+
+    <!-- LOGIN FORM -->
+    <div id="form-login">
+      <div class="login-input-wrap">
+        <input type="email" class="login-input" placeholder="Email address" id="login-email" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-input-wrap" style="position:relative">
+        <input type="password" class="login-input" placeholder="Password" id="login-pass" onkeydown="if(event.key==='Enter')doLogin()">
+        <button onclick="togglePass('login-pass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px">👁</button>
+      </div>
+      <button class="login-btn" onclick="doLogin()" id="login-submit-btn">Login</button>
+      <p style="margin-top:12px;font-size:12px;color:var(--text3)">
+        Account nahi hai? <a href="#" onclick="switchAuthTab('signup')" style="color:var(--accent)">Sign up karo</a>
+      </p>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="form-signup" style="display:none">
+      <div class="login-input-wrap">
+        <input type="text" class="login-input" placeholder="Full name" id="signup-name" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="login-input-wrap">
+        <input type="email" class="login-input" placeholder="Email address" id="signup-email" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="login-input-wrap" style="position:relative">
+        <input type="password" class="login-input" placeholder="Password (min 6 chars)" id="signup-pass" onkeydown="if(event.key==='Enter')doSignup()">
+        <button onclick="togglePass('signup-pass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px">👁</button>
+      </div>
+      <div class="login-input-wrap" style="position:relative">
+        <input type="password" class="login-input" placeholder="Confirm password" id="signup-confirm" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <button class="login-btn" onclick="doSignup()" id="signup-submit-btn">Account banao</button>
+      <p style="margin-top:12px;font-size:12px;color:var(--text3)">
+        Already account hai? <a href="#" onclick="switchAuthTab('login')" style="color:var(--accent)">Login karo</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-top">
+      <div class="logo">
+        <div class="logo-mark">✦</div>
+        <span class="logo-text">AI Chat Pro</span>
+      </div>
+      <button class="new-btn" onclick="newChat()" title="New Chat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+
+    <div class="sb-label">Recent</div>
+    <div class="sb-history" id="sb-history"></div>
+
+    <div class="sb-bottom">
+      <div class="token-bar-wrap">
+        <div class="token-bar-row">
+          <span id="sb-used">0 used</span>
+          <span id="sb-pct">0%</span>
+        </div>
+        <div class="token-bar-bg">
+          <div class="token-bar-fill" id="sb-fill" style="width:0%"></div>
+        </div>
+        <div class="token-bar-row" style="margin-top:4px">
+          <span></span>
+          <span id="sb-left" style="color:var(--text2)">5M left</span>
+        </div>
+      </div>
+      <div class="user-row" onclick="openSettings()">
+        <div class="avatar" id="user-av">R</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">Rahul</div>
+          <div class="user-plan" id="user-plan">Pro Plan</div>
+        </div>
+        <div class="sb-actions">
+          <button class="sb-icon-btn" onclick="event.stopPropagation();openAdmin()" title="Admin">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+          <button class="sb-icon-btn" onclick="event.stopPropagation();doLogout()" title="Logout">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT -->
+  <div id="main">
+    <div class="chat-header">
+      <button class="menu-btn" id="menu-btn" onclick="toggleSidebar()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <button class="model-btn" id="model-btn" onclick="openModelSheet()">
+        <span class="model-dot free" id="model-dot"></span>
+        <span id="model-label">GPT-4o Mini</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="hdr-right">
+        <div class="hdr-balance" id="hdr-balance">4.75M tokens</div>
+        <button class="hdr-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">✦</div>
+        <h2>Kya help chahiye aaj?</h2>
+        <p>Multiple AI models available — ChatGPT, Claude, Gemini aur aur bhi</p>
+        <div class="suggestions">
+          <button class="suggestion" onclick="sendSuggestion(this)">💻 Code help karo</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">✉️ Email draft karo</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">🤖 AI explain karo</button>
+          <button class="suggestion" onclick="sendSuggestion(this)">💡 Koi fun fact batao</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-inner">
+        <div class="input-wrap">
+          <textarea class="chat-input" id="chat-input" placeholder="Message likho..." rows="1"></textarea>
+          <button class="send-btn" id="send-btn" disabled onclick="sendMessage()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <span class="input-model" onclick="openModelSheet()">
+            <span class="model-dot free" style="width:6px;height:6px" id="input-dot"></span>
+            <span id="input-model-name">GPT-4o Mini</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+          <span class="input-hint">Enter = Send · Shift+Enter = New line</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODEL SHEET ═══ -->
+<div id="model-sheet">
+  <div class="sheet-backdrop" onclick="closeModelSheet()"></div>
+  <div class="sheet-panel">
+    <div class="sheet-header">
+      <span>Model choose karo</span>
+      <input type="text" class="sheet-search" id="sheet-search" placeholder="Search..." oninput="filterModels(this.value)">
+      <button class="sheet-close" onclick="closeModelSheet()">✕</button>
+    </div>
+    <div class="sheet-list" id="sheet-list"></div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS PANEL ═══ -->
+<div id="settings">
+  <div class="sp-modal" onclick="event.stopPropagation()">
+    <div class="sp-sidebar">
+      <div class="sp-header-row">
+        <span>Settings</span>
+        <button class="sp-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="sp-section-label">Account</div>
+      <button class="sp-tab active" data-pane="profile" onclick="switchPane(this,'profile')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+        <svg class="sp-tab-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button class="sp-tab" data-pane="usage" onclick="switchPane(this,'usage')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="7 10 10 13 13 10 17 14"/></svg>
+        Usage
+        <svg class="sp-tab-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sp-section-label" style="margin-top:6px">Subscription</div>
+      <button class="sp-tab" data-pane="plan" onclick="switchPane(this,'plan')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Plan
+        <svg class="sp-tab-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sp-section-label" style="margin-top:6px">AI</div>
+      <button class="sp-tab" data-pane="models" onclick="switchPane(this,'models')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83" stroke-linecap="round"/></svg>
+        Models
+        <svg class="sp-tab-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sp-version">v1.0.0 · Cloudflare</div>
+    </div>
+    <div class="sp-content">
+      <!-- PROFILE -->
+      <div class="sp-pane active" id="pane-profile">
+        <div class="profile-hero">
+          <div class="profile-av" id="sp-av">R</div>
+          <div>
+            <div class="profile-name" id="sp-name">Rahul Sharma</div>
+            <div class="profile-meta">
+              <span class="plan-badge">Pro</span>
+              <span class="profile-since">Since Jan 2025</span>
+            </div>
+          </div>
+        </div>
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-card-label">Total Requests</div>
+            <div class="stat-card-val">47</div>
+            <div style="position:relative;height:50px;width:100%"><canvas id="req-chart"></canvas></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Tokens Used</div>
+            <div class="stat-card-val">502.2K</div>
+            <div style="position:relative;height:50px;width:100%"><canvas id="tok-chart"></canvas></div>
+          </div>
+        </div>
+        <div class="sp-form-group">
+          <div class="sp-label">Display Name</div>
+          <input type="text" class="sp-input" value="Rahul Sharma" id="sp-display-name">
+        </div>
+        <div class="sp-form-group">
+          <div class="sp-label">Email</div>
+          <input type="email" class="sp-input" value="rahul@example.com" readonly style="opacity:.6">
+        </div>
+        <button class="sp-btn" onclick="saveProfile()">Save changes</button>
+      </div>
+
+      <!-- USAGE -->
+      <div class="sp-pane" id="pane-usage">
+        <div class="usage-stats">
+          <div class="ustat"><div class="ustat-val">502.2K</div><div class="ustat-label">Total used</div></div>
+          <div class="ustat"><div class="ustat-val">18.4K</div><div class="ustat-label">Today</div></div>
+          <div class="ustat"><div class="ustat-val">124K</div><div class="ustat-label">This month</div></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Daily usage (last 7 days)</div>
+          <div style="position:relative;height:100px"><canvas id="usage-chart"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-title">Usage by model</div>
+          <div style="position:relative;height:100px"><canvas id="model-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- PLAN -->
+      <div class="sp-pane" id="pane-plan">
+        <div style="margin-bottom:14px">
+          <div class="sp-label" style="margin-bottom:10px">Current plan</div>
+          <div class="plan-cards">
+            <div class="plan-card">
+              <div>
+                <div class="plan-name">Basic</div>
+                <div class="plan-tokens">5M tokens / month</div>
+              </div>
+              <div class="plan-price">₹700</div>
+            </div>
+            <div class="plan-card current">
+              <div>
+                <div class="plan-name">Pro ✦</div>
+                <div class="plan-tokens">20M tokens / month</div>
+              </div>
+              <div class="plan-price">₹2,000</div>
+            </div>
+            <div class="plan-card">
+              <div>
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-tokens">100M tokens / month</div>
+              </div>
+              <div class="plan-price">Custom</div>
+            </div>
+          </div>
+        </div>
+        <button class="sp-btn" onclick="alert('Razorpay payment integration yahan hogi!')">Upgrade karo — Razorpay</button>
+      </div>
+
+      <!-- MODELS -->
+      <div class="sp-pane" id="pane-models">
+        <div class="sp-label" style="margin-bottom:10px">Current model</div>
+        <div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+          <span class="model-dot premium" style="width:8px;height:8px"></span>
+          <span id="sp-current-model" style="font-size:13px;font-weight:600;color:var(--text)">GPT-4o Mini</span>
+          <span class="model-badge" style="margin-left:auto">Free tier</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">
+          Model selector upar header mein hai — <strong>GPT-4o, Claude, Gemini, Mistral</strong> aur 200+ models available hain OpenRouter ke through. Premium models pe 4x token multiplier lagta hai.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN PANEL ═══ -->
+<div id="admin">
+  <div class="admin-sidebar">
+    <div class="admin-logo">
+      <div class="admin-logo-badge">A</div>
+      <span class="admin-logo-text">Admin Panel</span>
+    </div>
+    <div class="admin-nav-label">Dashboard</div>
+    <div class="admin-nav-item active" data-apane="dashboard" onclick="switchAdminPane(this,'dashboard')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Overview
+    </div>
+    <div class="admin-nav-label">Manage</div>
+    <div class="admin-nav-item" data-apane="users" onclick="switchAdminPane(this,'users')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </div>
+    <div class="admin-nav-item" data-apane="asettings" onclick="switchAdminPane(this,'asettings')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+    <div class="admin-exit" onclick="closeAdmin()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+      Chat pe wapas
+    </div>
+  </div>
+  <div class="admin-main">
+    <div class="admin-header">
+      <h2 id="admin-title">Overview</h2>
+      <div style="font-size:12px;color:var(--text3)" id="admin-subtitle">Dashboard</div>
+    </div>
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <div class="admin-pane active" id="apane-dashboard">
+        <div class="admin-stat-row">
+          <div class="astat">
+            <div class="astat-icon" style="background:rgba(255,124,92,.12);font-size:16px">👥</div>
+            <div class="astat-val">1,284</div>
+            <div class="astat-label">Total Users</div>
+            <div class="astat-trend up">↑ 12% this week</div>
+          </div>
+          <div class="astat">
+            <div class="astat-icon" style="background:rgba(34,197,94,.12);font-size:16px">💬</div>
+            <div class="astat-val">38.4K</div>
+            <div class="astat-label">Total Requests</div>
+            <div class="astat-trend up">↑ 8.2% today</div>
+          </div>
+          <div class="astat">
+            <div class="astat-icon" style="background:rgba(124,92,255,.12);font-size:16px">🪙</div>
+            <div class="astat-val">142M</div>
+            <div class="astat-label">Tokens Used</div>
+            <div class="astat-trend up">↑ 23% this month</div>
+          </div>
+          <div class="astat">
+            <div class="astat-icon" style="background:rgba(251,191,36,.12);font-size:16px">💰</div>
+            <div class="astat-val">₹84K</div>
+            <div class="astat-label">Revenue (MTD)</div>
+            <div class="astat-trend up">↑ 31% vs last month</div>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title">Daily Requests (last 14 days)</div>
+          <div style="position:relative;height:120px"><canvas id="admin-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="admin-pane" id="apane-users">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap">
+          <div class="admin-section-title" style="margin:0">All Users <span id="user-count" style="font-size:11px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(5)</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="user-search" oninput="searchUsers(this.value)" style="padding:7px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;outline:none;width:180px" placeholder="Search...">
+            <button onclick="openAddUser()" style="padding:7px 14px;background:linear-gradient(135deg,#7c5cff,#a855f7);color:#fff;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;gap:5px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              Add User
+            </button>
+          </div>
+        </div>
+        <table class="users-table">
+          <thead><tr>
+            <th>User</th><th>Plan</th><th>Tokens Left</th><th>Requests</th><th>Joined</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- ADD/EDIT USER MODAL -->
+      <div id="user-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+        <div style="width:420px;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;animation:spIn .2s ease">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <h3 id="modal-title" style="font-size:15px;font-weight:600;color:var(--text)">Add User</h3>
+            <button onclick="closeUserModal()" style="color:var(--text3);font-size:18px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">✕</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <div class="admin-label">Full Name</div>
+              <input type="text" id="modal-name" class="admin-input" placeholder="Rahul Sharma">
+            </div>
+            <div>
+              <div class="admin-label">Email</div>
+              <input type="email" id="modal-email" class="admin-input" placeholder="rahul@example.com">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <div class="admin-label">Plan</div>
+              <select id="modal-plan" class="admin-input" style="cursor:pointer">
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            <div>
+              <div class="admin-label">Status</div>
+              <select id="modal-status" class="admin-input" style="cursor:pointer">
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <div class="admin-label">Token Balance</div>
+            <input type="number" id="modal-tokens" class="admin-input" placeholder="5000000" value="5000000">
+          </div>
+          <div style="margin-bottom:20px">
+            <div class="admin-label">Password <span style="color:var(--text3);font-weight:400;text-transform:none">(edit pe blank = unchanged)</span></div>
+            <input type="password" id="modal-pass" class="admin-input" placeholder="••••••••">
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="closeUserModal()" style="padding:9px 18px;border-radius:9px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer">Cancel</button>
+            <button onclick="saveUser()" style="padding:9px 18px;border-radius:9px;background:linear-gradient(135deg,#7c5cff,#a855f7);color:#fff;font-size:13px;font-weight:600;cursor:pointer;border:none" id="modal-save-btn">Add User</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DELETE CONFIRM MODAL -->
+      <div id="delete-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+        <div style="width:360px;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;text-align:center;animation:spIn .2s ease">
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px">🗑️</div>
+          <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">User delete karo?</h3>
+          <p id="delete-name" style="font-size:13px;color:var(--text2);margin-bottom:20px">Yeh action undo nahi hoga.</p>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button onclick="closeDeleteModal()" style="padding:9px 20px;border-radius:9px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer">Cancel</button>
+            <button onclick="confirmDelete()" style="padding:9px 20px;border-radius:9px;background:#ef4444;color:#fff;font-size:13px;font-weight:600;cursor:pointer;border:none">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="admin-pane" id="apane-asettings">
+        <div class="admin-card">
+          <div class="admin-card-title">API Configuration</div>
+          <div class="admin-form-row">
+            <div class="admin-form-group">
+              <label class="admin-label">OpenRouter API Key</label>
+              <input type="password" class="admin-input" value="sk-or-v1-••••••••••••" placeholder="sk-or-v1-...">
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label">HuggingFace API Key</label>
+              <input type="password" class="admin-input" value="hf_••••••••••••" placeholder="hf_...">
+            </div>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title">Token Limits per Plan</div>
+          <div class="admin-form-row">
+            <div class="admin-form-group">
+              <label class="admin-label">Basic (tokens)</label>
+              <input type="number" class="admin-input" value="5000000">
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label">Pro (tokens)</label>
+              <input type="number" class="admin-input" value="20000000">
+            </div>
+          </div>
+          <div class="admin-form-row">
+            <div class="admin-form-group">
+              <label class="admin-label">Enterprise (tokens)</label>
+              <input type="number" class="admin-input" value="100000000">
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label">Premium Multiplier</label>
+              <input type="number" class="admin-input" value="4">
+            </div>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title">System Prompt</div>
+          <div class="admin-form-group">
+            <textarea class="admin-input admin-textarea">You are a helpful AI assistant.</textarea>
+          </div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title">Premium Models (1 per line)</div>
+          <div class="admin-form-group">
+            <textarea class="admin-input admin-textarea" style="min-height:100px">gpt-4o
+claude-opus
+gemini-2.5-pro
+gpt-4.1
+claude-opus-4</textarea>
+          </div>
+        </div>
+        <button class="admin-btn" onclick="alert('Settings saved to Cloudflare D1!')">Save All Settings</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const S = {
+  user: null,
+  messages: [],
+  streaming: false,
+  model: 'openai/gpt-4o-mini',
+  modelName: 'GPT-4o Mini',
+  isPremium: false,
+  balance: 4497800,
+  maxTokens: 5000000,
+  convId: null,
+  history: [],
+  lightMode: false,
+};
+
+const MODELS = {
+  OpenAI: [
+    {id:'openai/gpt-4o-mini', name:'GPT-4o Mini', premium:false},
+    {id:'openai/gpt-4o', name:'GPT-4o', premium:true},
+    {id:'openai/gpt-4.1', name:'GPT-4.1', premium:true},
+    {id:'openai/o1-mini', name:'o1 Mini', premium:false},
+  ],
+  Claude: [
+    {id:'anthropic/claude-3-haiku', name:'Claude 3 Haiku', premium:false},
+    {id:'anthropic/claude-3.5-sonnet', name:'Claude 3.5 Sonnet', premium:true},
+    {id:'anthropic/claude-opus-4', name:'Claude Opus 4', premium:true},
+  ],
+  Google: [
+    {id:'google/gemini-flash-1.5', name:'Gemini Flash 1.5', premium:false},
+    {id:'google/gemini-pro-1.5', name:'Gemini Pro 1.5', premium:true},
+    {id:'google/gemini-2.5-pro', name:'Gemini 2.5 Pro', premium:true},
+  ],
+  DeepSeek: [
+    {id:'deepseek/deepseek-chat', name:'DeepSeek V3', premium:false},
+    {id:'deepseek/deepseek-r1', name:'DeepSeek R1', premium:true},
+  ],
+  Mistral: [
+    {id:'mistralai/mistral-7b-instruct', name:'Mistral 7B', premium:false},
+    {id:'mistralai/mistral-large', name:'Mistral Large', premium:true},
+  ],
+};
+
+const DUMMY_USERS = [
+  {name:'Rahul Sharma', email:'rahul@ex.com', plan:'pro', tokens:'16.2M', reqs:247, joined:'Jan 2025', status:'active'},
+  {name:'Priya Singh', email:'priya@ex.com', plan:'basic', tokens:'3.8M', reqs:89, joined:'Feb 2025', status:'active'},
+  {name:'Amit Kumar', email:'amit@ex.com', plan:'enterprise', tokens:'87M', reqs:1203, joined:'Nov 2024', status:'active'},
+  {name:'Deepa Patel', email:'deepa@ex.com', plan:'basic', tokens:'1.2M', reqs:34, joined:'Mar 2025', status:'active'},
+  {name:'Vikram Rao', email:'vikram@ex.com', plan:'pro', tokens:'11M', reqs:512, joined:'Dec 2024', status:'active'},
+];
+
+const DEMO_REPLIES = {
+  'code': `Main tumhare liye Python code likh sakta hoon! Yahan ek simple example hai:\n\n\`\`\`python\ndef greet(name):\n    return f"Namaste, {name}!"\n\nprint(greet("Dost"))\n\`\`\`\n\nYeh function ek naam leta hai aur greeting return karta hai. Kya specific kuch chahiye?`,
+  'email': `Bilkul! Yahan ek professional email template hai:\n\n**Subject:** Meeting Request — [Date]\n\nDear [Name],\n\nUmeed hai aap theek hain. Main [topic] ke baare mein baat karna chahta tha.\n\nKya aap [date] ko available hain?\n\nRegards,\n[Your Name]`,
+  'ai': `**Artificial Intelligence (AI)** ek computer system hai jo insaan jaisi soch aur decisions le sakta hai.\n\n**Main types:**\n- Machine Learning — data se seekhna\n- Deep Learning — neural networks use karna\n- NLP — language samajhna\n\nAaj AI ka use har jagah ho raha hai — phones, hospitals, cars mein!`,
+  'fact': `🌟 **Interesting fact:** \n\nOctopus ke 3 hearts hote hain! Do hearts blood ko gills mein pump karte hain, aur ek heart baaki body mein. Jab octopus swim karta hai toh ek heart temporarily band ho jaata hai — isliye wo swimming se thak jaate hain aur crawling prefer karte hain! 🐙`,
+  default: `Bilkul samajh gaya! Main is question ka jawab de raha hoon...\n\n**Yeh ek demo response hai** — actual deployment mein yeh OpenRouter API ke through real AI model se aayega.\n\n**Cloudflare setup mein:**\n- Worker tumhara message lega\n- OpenRouter API call karega\n- Streaming response wapas bhejega\n- D1 mein token usage save karega\n\nKoi specific sawal? 😊`,
+};
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// AUTH — localStorage based
+// ═══════════════════════════════════════════════
+
+// Default admin + test users pre-loaded
+function initDB() {
+  if(!localStorage.getItem('aichat_users')) {
+    const defaultUsers = [
+      {id:'admin', name:'Admin', email:'admin@aichat.com', pass:'admin123', plan:'enterprise', tokens:100000000, maxTokens:100000000, role:'admin', joined:'Jan 2025'},
+      {id:'u_demo', name:'Demo User', email:'demo@aichat.com', pass:'demo123', plan:'pro', tokens:20000000, maxTokens:20000000, role:'user', joined:'Mar 2025'},
+    ];
+    localStorage.setItem('aichat_users', JSON.stringify(defaultUsers));
+  }
+}
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem('aichat_users') || '[]');
+}
+function saveUsers(users) {
+  localStorage.setItem('aichat_users', JSON.stringify(users));
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('form-login').style.display  = isLogin ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = isLogin ? 'none'  : 'block';
+  document.getElementById('tab-login').style.background  = isLogin ? 'var(--bg2)' : 'transparent';
+  document.getElementById('tab-login').style.color       = isLogin ? 'var(--text)' : 'var(--text2)';
+  document.getElementById('tab-login').style.fontWeight  = isLogin ? '600' : '500';
+  document.getElementById('tab-signup').style.background = isLogin ? 'transparent' : 'var(--bg2)';
+  document.getElementById('tab-signup').style.color      = isLogin ? 'var(--text2)' : 'var(--text)';
+  document.getElementById('tab-signup').style.fontWeight = isLogin ? '500' : '600';
+  hideAuthMsg();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('auth-success').style.display = 'none';
+}
+function showAuthSuccess(msg) {
+  const el = document.getElementById('auth-success');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('auth-error').style.display = 'none';
+}
+function hideAuthMsg() {
+  document.getElementById('auth-error').style.display = 'none';
+  document.getElementById('auth-success').style.display = 'none';
+}
+
+function togglePass(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function oauthLogin(provider) {
+  const name = provider === 'google' ? 'Google User' : 'GitHub User';
+  const email = provider + '_user@demo.com';
+  const users = getUsers();
+  let user = users.find(u => u.email === email);
+  if(!user) {
+    user = {id:'u_'+Date.now(), name, email, pass:'', plan:'basic', tokens:5000000, maxTokens:5000000, role:'user', joined: new Date().toLocaleDateString('en',{month:'short',year:'numeric'})};
+    users.push(user);
+    saveUsers(users);
+  }
+  localStorage.setItem('aichat_session', JSON.stringify(user));
+  showApp(user);
+}
+
+function doLogin() {
+  hideAuthMsg();
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if(!email || !pass) { showAuthError('Email aur password dono zaroori hain!'); return; }
+
+  const users = getUsers();
+  const user  = users.find(u => u.email === email && u.pass === pass);
+  if(!user) { showAuthError('Email ya password galat hai!'); return; }
+  if(user.status === 'suspended') { showAuthError('Aapka account suspend hai. Admin se contact karo.'); return; }
+
+  localStorage.setItem('aichat_session', JSON.stringify(user));
+  showApp(user);
+}
+
+function doSignup() {
+  hideAuthMsg();
+  const name    = document.getElementById('signup-name').value.trim();
+  const email   = document.getElementById('signup-email').value.trim();
+  const pass    = document.getElementById('signup-pass').value;
+  const confirm = document.getElementById('signup-confirm').value;
+
+  if(!name)  { showAuthError('Naam zaroori hai!'); return; }
+  if(!email || !email.includes('@')) { showAuthError('Valid email daalo!'); return; }
+  if(pass.length < 6) { showAuthError('Password kam se kam 6 characters ka hona chahiye!'); return; }
+  if(pass !== confirm) { showAuthError('Dono passwords match nahi kar rahe!'); return; }
+
+  const users = getUsers();
+  if(users.find(u => u.email === email)) { showAuthError('Yeh email pehle se registered hai!'); return; }
+
+  const newUser = {
+    id: 'u_'+Date.now(),
+    name, email, pass,
+    plan: 'basic',
+    tokens: 5000000,
+    maxTokens: 5000000,
+    role: 'user',
+    status: 'active',
+    joined: new Date().toLocaleDateString('en',{month:'short',year:'numeric'})
+  };
+  users.push(newUser);
+  saveUsers(users);
+
+  showAuthSuccess('Account ban gaya! Login ho rahe hain...');
+  setTimeout(() => {
+    localStorage.setItem('aichat_session', JSON.stringify(newUser));
+    showApp(newUser);
+  }, 1000);
+}
+
+function showApp(user) {
+  S.user = user;
+  // Sync USERS array with localStorage
+  USERS = getUsers().filter(u => u.role !== 'admin' || true);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const n = user.name.charAt(0).toUpperCase();
+  document.getElementById('user-av').textContent = n;
+  document.getElementById('sp-av').textContent = n;
+  document.getElementById('user-name').textContent = user.name;
+  document.getElementById('sp-name').textContent = user.name;
+  document.getElementById('sp-display-name').value = user.name;
+  document.getElementById('user-plan').textContent = user.plan.charAt(0).toUpperCase()+user.plan.slice(1)+' Plan';
+  // Hide admin button for non-admins
+  const adminBtn = document.querySelector('.sb-icon-btn[title="Admin"]');
+  if(adminBtn) adminBtn.style.display = user.role === 'admin' ? 'flex' : 'none';
+  S.balance   = user.tokens || 5000000;
+  S.maxTokens = user.maxTokens || 5000000;
+  loadHistory();
+  updateTokenUI();
+  initCharts();
+}
+
+function doLogout() {
+  localStorage.removeItem('aichat_session');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+  hideAuthMsg();
+}
+
+// Auto login if session exists
+initDB();
+window.addEventListener('DOMContentLoaded', () => {
+  const session = localStorage.getItem('aichat_session');
+  if(session) {
+    try {
+      const user = JSON.parse(session);
+      // Verify user still exists in DB
+      const users = getUsers();
+      const fresh = users.find(u => u.id === user.id);
+      if(fresh) showApp(fresh);
+    } catch(e) { localStorage.removeItem('aichat_session'); }
+  }
+});
+
+// ═══════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════
+function newChat() {
+  S.messages = [];
+  S.convId = 'conv_'+Date.now();
+  document.getElementById('messages').innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">✦</div>
+      <h2>Kya help chahiye aaj?</h2>
+      <p>Multiple AI models available — ChatGPT, Claude, Gemini aur aur bhi</p>
+      <div class="suggestions">
+        <button class="suggestion" onclick="sendSuggestion(this)">💻 Code help karo</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">✉️ Email draft karo</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">🤖 AI explain karo</button>
+        <button class="suggestion" onclick="sendSuggestion(this)">💡 Koi fun fact batao</button>
+      </div>
+    </div>`;
+}
+
+function sendSuggestion(btn) {
+  const text = btn.textContent.replace(/^[^\s]+\s/,'').trim();
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+const input = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+
+input.addEventListener('input', function() {
+  sendBtn.disabled = !this.value.trim();
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+});
+input.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!sendBtn.disabled) sendMessage();
+  }
+});
+
+function sendMessage() {
+  const text = input.value.trim();
+  if (!text || S.streaming) return;
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.style.display = 'none';
+
+  S.messages.push({role:'user', content:text});
+  appendMsg('user', text);
+
+  S.streaming = true;
+  sendBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>`;
+  sendBtn.classList.add('stop');
+  sendBtn.disabled = false;
+
+  const aiWrap = appendMsg('assistant', null);
+  simulateStream(aiWrap, text);
+}
+
+function appendMsg(role, content) {
+  const msgs = document.getElementById('messages');
+  let inner = msgs.querySelector('.msgs-inner');
+  if (!inner) {
+    inner = document.createElement('div');
+    inner.className = 'msgs-inner';
+    msgs.appendChild(inner);
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'msg msg-'+role;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  if (role === 'user') {
+    bubble.textContent = content;
+    wrap.appendChild(bubble);
+  } else {
+    if (content) {
+      bubble.innerHTML = parseMarkdown(content);
+    } else {
+      bubble.innerHTML = '<div class="thinking"><span></span><span></span><span></span></div>';
+    }
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    actions.innerHTML = `
+      <button class="action-btn" title="Copy" onclick="copyMsg(this)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button class="action-btn" title="Like" onclick="this.classList.toggle('active')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
+      <button class="action-btn" title="Dislike" onclick="this.classList.toggle('active')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>`;
+    wrap.appendChild(bubble);
+    wrap.appendChild(actions);
+  }
+  inner.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+  return wrap;
+}
+
+function simulateStream(wrap, userText) {
+  const lower = userText.toLowerCase();
+  let reply = DEMO_REPLIES.default;
+  if (lower.includes('code') || lower.includes('python') || lower.includes('js')) reply = DEMO_REPLIES.code;
+  else if (lower.includes('email')) reply = DEMO_REPLIES.email;
+  else if (lower.includes('ai') || lower.includes('machine')) reply = DEMO_REPLIES.ai;
+  else if (lower.includes('fact')) reply = DEMO_REPLIES.fact;
+
+  const bubble = wrap.querySelector('.bubble');
+  bubble.innerHTML = '';
+  const span = document.createElement('span');
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  bubble.appendChild(span);
+  bubble.appendChild(cursor);
+
+  let i = 0, accum = '';
+  const words = reply.split(/(\s+)/);
+
+  function tick() {
+    if (!S.streaming) return;
+    const chunk = words.slice(i, i+3).join('');
+    accum += chunk;
+    i += 3;
+    span.innerHTML = parseMarkdown(accum);
+    bubble.appendChild(cursor);
+    document.getElementById('messages').scrollTop = 9999;
+
+    if (i < words.length) {
+      setTimeout(tick, 25);
+    } else {
+      cursor.remove();
+      S.streaming = false;
+      sendBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+      sendBtn.classList.remove('stop');
+      sendBtn.disabled = true;
+      S.messages.push({role:'assistant', content:reply});
+      S.balance -= Math.floor(Math.random()*2000 + 500);
+      updateTokenUI();
+      saveToHistory(userText.slice(0,40));
+    }
+  }
+  setTimeout(tick, 300);
+}
+
+function copyMsg(btn) {
+  const bubble = btn.closest('.msg').querySelector('.bubble');
+  navigator.clipboard?.writeText(bubble.innerText).then(() => {
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }, 1500);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════
+function saveToHistory(title) {
+  S.history.unshift({id: S.convId || 'c'+Date.now(), title, time: Date.now()});
+  renderHistory();
+}
+
+function loadHistory() {
+  S.history = [
+    {id:'h1', title:'Python script mein help karo', time:Date.now()-3600000},
+    {id:'h2', title:'Email draft karo client ke liye', time:Date.now()-7200000},
+    {id:'h3', title:'Machine learning explain karo', time:Date.now()-86400000},
+    {id:'h4', title:'React component banana hai', time:Date.now()-172800000},
+    {id:'h5', title:'SQL query optimize karo', time:Date.now()-259200000},
+    {id:'h6', title:'Business plan review karo', time:Date.now()-345600000},
+    {id:'h7', title:'Instagram caption likhna hai', time:Date.now()-432000000},
+  ];
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('sb-history');
+  if (!el) return;
+  el.innerHTML = S.history.slice(0,20).map(h => `
+    <div class="hist-item ${h.id === S.convId ? 'active' : ''}" onclick="loadConv('${h.id}')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      ${h.title}
+    </div>`).join('');
+}
+
+function loadConv(id) {
+  S.convId = id;
+  renderHistory();
+  newChat();
+}
+
+// ═══════════════════════════════════════════════
+// TOKEN UI
+// ═══════════════════════════════════════════════
+function fmt(n) {
+  n = parseInt(n)||0;
+  if(n>=1000000) return (n/1000000).toFixed(1)+'M';
+  if(n>=1000) return (n/1000).toFixed(1)+'K';
+  return n.toLocaleString();
+}
+function updateTokenUI() {
+  const used = S.maxTokens - S.balance;
+  const pct = Math.min(100, Math.round(used/S.maxTokens*100));
+  const color = pct>=90 ? '#ef4444' : pct>=70 ? '#f59e0b' : '#ff7c5c';
+  const fill = document.getElementById('sb-fill');
+  if(fill){ fill.style.width=pct+'%'; fill.style.background=color; }
+  const elPct = document.getElementById('sb-pct'); if(elPct) elPct.textContent=pct+'%';
+  const elUsed = document.getElementById('sb-used'); if(elUsed) elUsed.textContent=fmt(used)+' used';
+  const elLeft = document.getElementById('sb-left'); if(elLeft) elLeft.textContent=fmt(S.balance)+' left';
+  const elBal = document.getElementById('hdr-balance'); if(elBal) elBal.textContent=fmt(S.balance)+' tokens';
+}
+
+// ═══════════════════════════════════════════════
+// MODEL SHEET
+// ═══════════════════════════════════════════════
+function openModelSheet() {
+  document.getElementById('model-sheet').classList.add('open');
+  renderModelSheet('');
+  document.getElementById('sheet-search').focus();
+}
+function closeModelSheet() {
+  document.getElementById('model-sheet').classList.remove('open');
+}
+function renderModelSheet(query) {
+  const list = document.getElementById('sheet-list');
+  let html = '';
+  for(const [prov, models] of Object.entries(MODELS)) {
+    const filtered = models.filter(m => !query || m.name.toLowerCase().includes(query.toLowerCase()) || prov.toLowerCase().includes(query.toLowerCase()));
+    if(!filtered.length) continue;
+    html += `<div class="provider-group"><div class="provider-label">${prov}</div>`;
+    filtered.forEach(m => {
+      html += `<div class="model-item ${m.id===S.model?'selected':''}" onclick="selectModel('${m.id}','${m.name}',${m.premium})">
+        <span class="model-dot-sm" style="background:${m.premium?'#ff7c5c':'#22c55e'}"></span>
+        <span class="model-name">${m.name}</span>
+        ${m.premium ? '<span class="model-badge">4x</span>' : ''}
+      </div>`;
+    });
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+function filterModels(q) { renderModelSheet(q); }
+function selectModel(id, name, premium) {
+  S.model = id; S.modelName = name; S.isPremium = premium;
+  document.getElementById('model-label').textContent = name;
+  document.getElementById('input-model-name').textContent = name;
+  document.getElementById('sp-current-model').textContent = name;
+  const cls = premium ? 'premium' : 'free';
+  document.getElementById('model-dot').className = 'model-dot '+cls;
+  document.getElementById('input-dot').className = 'model-dot '+cls;
+  closeModelSheet();
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════
+let settingsChartsInit = false;
+function openSettings() {
+  document.getElementById('settings').classList.add('open');
+  initSettingsCharts();
+}
+function closeSettings() { document.getElementById('settings').classList.remove('open'); }
+document.getElementById('settings').addEventListener('click', function(e) {
+  if(e.target === this) closeSettings();
+});
+function switchPane(btn, pane) {
+  document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sp-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-'+pane).classList.add('active');
+}
+function saveProfile() {
+  const n = document.getElementById('sp-display-name').value;
+  document.getElementById('user-name').textContent = n;
+  document.getElementById('sp-name').textContent = n;
+  document.getElementById('user-av').textContent = n.charAt(0).toUpperCase();
+  document.getElementById('sp-av').textContent = n.charAt(0).toUpperCase();
+  alert('Profile saved!');
+}
+
+// ═══════════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════════
+let adminChartsInit = false;
+let editingUserId = null;
+let deletingUserId = null;
+
+let USERS = [
+  {id:'u1', name:'Rahul Sharma',  email:'rahul@ex.com',  plan:'pro',        tokens:16200000, maxTokens:20000000, reqs:247,  joined:'Jan 2025', status:'active'},
+  {id:'u2', name:'Priya Singh',   email:'priya@ex.com',  plan:'basic',      tokens:3800000,  maxTokens:5000000,  reqs:89,   joined:'Feb 2025', status:'active'},
+  {id:'u3', name:'Amit Kumar',    email:'amit@ex.com',   plan:'enterprise', tokens:87000000, maxTokens:100000000,reqs:1203, joined:'Nov 2024', status:'active'},
+  {id:'u4', name:'Deepa Patel',   email:'deepa@ex.com',  plan:'basic',      tokens:1200000,  maxTokens:5000000,  reqs:34,   joined:'Mar 2025', status:'active'},
+  {id:'u5', name:'Vikram Rao',    email:'vikram@ex.com', plan:'pro',        tokens:11000000, maxTokens:20000000, reqs:512,  joined:'Dec 2024', status:'active'},
+];
+
+function openAdmin() {
+  document.getElementById('admin').classList.add('open');
+  renderUsersTable(USERS);
+  if(!adminChartsInit){ initAdminChart(); adminChartsInit=true; }
+}
+function closeAdmin() { document.getElementById('admin').classList.remove('open'); }
+
+function switchAdminPane(el, pane) {
+  document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.admin-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('apane-'+pane).classList.add('active');
+  const titles = {dashboard:'Overview', users:'Users', asettings:'Settings'};
+  const subs = {dashboard:'Dashboard', users:'Manage Users', asettings:'Configuration'};
+  document.getElementById('admin-title').textContent = titles[pane]||pane;
+  document.getElementById('admin-subtitle').textContent = subs[pane]||'';
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-tbody');
+  const count = document.getElementById('user-count');
+  if(count) count.textContent = '('+users.length+')';
+
+  const planColors = {basic:'tag-basic', pro:'tag-pro', enterprise:'tag-enterprise'};
+  const statusColors = {active:'tag-active', suspended:'tag-suspended'};
+
+  tbody.innerHTML = users.map(u => {
+    const usedPct = Math.round((1 - u.tokens/u.maxTokens)*100);
+    const barColor = usedPct>=90?'#ef4444':usedPct>=70?'#f59e0b':'#22c55e';
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#ff7c5c,#ff4d8f);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${u.name.charAt(0)}</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">${u.name}</div>
+            <div style="font-size:11px;color:var(--text2)">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="user-tag ${planColors[u.plan]||'tag-basic'}">${u.plan}</span></td>
+      <td>
+        <div style="font-family:var(--mono);font-size:12px;margin-bottom:4px">${fmt(u.tokens)}</div>
+        <div style="height:3px;background:var(--bg3);border-radius:2px;width:80px">
+          <div style="height:100%;width:${usedPct}%;background:${barColor};border-radius:2px"></div>
+        </div>
+      </td>
+      <td style="font-family:var(--mono);font-size:12px">${(u.reqs||0).toLocaleString()}</td>
+      <td style="color:var(--text2);font-size:12px">${u.joined}</td>
+      <td>
+        <span class="user-tag ${u.status==='active'?'tag-active':'tag-suspended'}" style="cursor:pointer" onclick="toggleStatus('${u.id}')" title="Click to toggle">
+          ${u.status}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;gap:5px">
+          <button onclick="editUser('${u.id}')" title="Edit" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button onclick="resetTokens('${u.id}')" title="Reset tokens" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='var(--text2)'">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.75"/></svg>
+          </button>
+          <button onclick="deleteUser('${u.id}')" title="Delete" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text2)'">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function searchUsers(q) {
+  const filtered = USERS.filter(u =>
+    u.name.toLowerCase().includes(q.toLowerCase()) ||
+    u.email.toLowerCase().includes(q.toLowerCase()) ||
+    u.plan.includes(q.toLowerCase())
+  );
+  renderUsersTable(filtered);
+}
+
+// ── Add User ──
+function openAddUser() {
+  editingUserId = null;
+  document.getElementById('modal-title').textContent = 'Add User';
+  document.getElementById('modal-save-btn').textContent = 'Add User';
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-email').value = '';
+  document.getElementById('modal-plan').value = 'basic';
+  document.getElementById('modal-status').value = 'active';
+  document.getElementById('modal-tokens').value = '5000000';
+  document.getElementById('modal-pass').value = '';
+  const m = document.getElementById('user-modal');
+  m.style.display = 'flex';
+}
+
+// ── Edit User ──
+function editUser(id) {
+  const u = USERS.find(u => u.id === id);
+  if(!u) return;
+  editingUserId = id;
+  document.getElementById('modal-title').textContent = 'Edit User';
+  document.getElementById('modal-save-btn').textContent = 'Save Changes';
+  document.getElementById('modal-name').value = u.name;
+  document.getElementById('modal-email').value = u.email;
+  document.getElementById('modal-plan').value = u.plan;
+  document.getElementById('modal-status').value = u.status;
+  document.getElementById('modal-tokens').value = u.tokens;
+  document.getElementById('modal-pass').value = '';
+  const m = document.getElementById('user-modal');
+  m.style.display = 'flex';
+}
+
+function saveUser() {
+  const name   = document.getElementById('modal-name').value.trim();
+  const email  = document.getElementById('modal-email').value.trim();
+  const plan   = document.getElementById('modal-plan').value;
+  const status = document.getElementById('modal-status').value;
+  const tokens = parseInt(document.getElementById('modal-tokens').value) || 5000000;
+  const pass   = document.getElementById('modal-pass').value;
+  if(!name || !email){ showAuthError && alert('Name aur email zaroori hai!'); return; }
+
+  const maxMap = {basic:5000000, pro:20000000, enterprise:100000000};
+  const users  = getUsers();
+
+  if(editingUserId) {
+    const idx = users.findIndex(u => u.id === editingUserId);
+    if(idx>=0){
+      users[idx] = {...users[idx], name, email, plan, status, tokens, maxTokens:maxMap[plan]};
+      if(pass) users[idx].pass = pass;
+    }
+    USERS = users;
+    saveUsers(users);
+  } else {
+    if(!pass){ alert('Naye user ke liye password zaroori hai!'); return; }
+    const newU = {
+      id: 'u'+Date.now(),
+      name, email, pass, plan, status, tokens,
+      maxTokens: maxMap[plan],
+      role: 'user',
+      reqs: 0,
+      joined: new Date().toLocaleDateString('en',{month:'short',year:'numeric'})
+    };
+    users.push(newU);
+    USERS = users;
+    saveUsers(users);
+  }
+
+  renderUsersTable(USERS);
+  closeUserModal();
+}
+
+function closeUserModal() {
+  document.getElementById('user-modal').style.display = 'none';
+}
+
+// ── Delete User ──
+function deleteUser(id) {
+  deletingUserId = id;
+  const u = USERS.find(u => u.id === id);
+  document.getElementById('delete-name').textContent = u ? `"${u.name}" (${u.email}) delete hoga.` : 'Yeh action undo nahi hoga.';
+  document.getElementById('delete-modal').style.display = 'flex';
+}
+
+function confirmDelete() {
+  const users = getUsers().filter(u => u.id !== deletingUserId);
+  USERS = users;
+  saveUsers(users);
+  renderUsersTable(USERS);
+  closeDeleteModal();
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').style.display = 'none';
+  deletingUserId = null;
+}
+
+function toggleStatus(id) {
+  const users = getUsers();
+  const u = users.find(u => u.id === id);
+  if(!u) return;
+  u.status = u.status === 'active' ? 'suspended' : 'active';
+  saveUsers(users);
+  USERS = users;
+  renderUsersTable(USERS);
+}
+
+function resetTokens(id) {
+  const users = getUsers();
+  const u = users.find(u => u.id === id);
+  if(!u) return;
+  u.tokens = u.maxTokens;
+  saveUsers(users);
+  USERS = users;
+  renderUsersTable(USERS);
+}
+
+// ═══════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════
+const chartDefaults = () => ({
+  plugins: { legend: { display: false }, tooltip: { enabled: false } },
+  scales: { x: { display: false }, y: { display: false } },
+  animation: false,
+  responsive: true,
+  maintainAspectRatio: false,
+});
+
+function initCharts() {
+  setTimeout(() => {
+    ['req-chart','tok-chart'].forEach(id => {
+      const c = Chart.getChart(id); if(c) c.destroy();
+    });
+    new Chart(document.getElementById('req-chart'), {
+      type:'line', data:{ labels:['M','T','W','T','F','S','S'],
+        datasets:[{data:[45,62,38,71,55,89,47], borderColor:'#ff7c5c', backgroundColor:'rgba(255,124,92,.1)', tension:.4, fill:true, pointRadius:0, borderWidth:1.5}]},
+      options: chartDefaults()
+    });
+    new Chart(document.getElementById('tok-chart'), {
+      type:'bar', data:{ labels:['M','T','W','T','F','S','S'],
+        datasets:[{data:[280,410,190,560,340,780,240], backgroundColor:'rgba(124,92,255,.5)', borderRadius:3}]},
+      options: chartDefaults()
+    });
+  }, 100);
+}
+function initSettingsCharts() {
+  ['usage-chart','model-chart'].forEach(id => {
+    const c = Chart.getChart(id); if(c) c.destroy();
+  });
+  const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  new Chart(document.getElementById('usage-chart'), {
+    type:'bar',
+    data:{ labels, datasets:[{data:[12400,0,18600,8200,24800,0,18400], backgroundColor:'rgba(255,124,92,.6)', borderRadius:4, borderSkipped:false}]},
+    options:{plugins:{legend:{display:false}}, scales:{
+      x:{display:true,ticks:{color:'#555',font:{size:10}}},
+      y:{display:true,ticks:{color:'#555',font:{size:10},callback:v=>fmt(v)}},
+    },animation:false,responsive:true,maintainAspectRatio:false}
+  });
+  new Chart(document.getElementById('model-chart'), {
+    type:'doughnut',
+    data:{
+      labels:['GPT-4o Mini','Claude Haiku','Gemini Flash','DeepSeek V3'],
+      datasets:[{data:[52,24,15,9], backgroundColor:['#ff7c5c','#7c5cff','#22c55e','#f59e0b'], borderWidth:0, hoverOffset:4}]
+    },
+    options:{plugins:{legend:{display:true,position:'right',labels:{color:'#888',font:{size:11},boxWidth:10}}},animation:false,responsive:true,maintainAspectRatio:false}
+  });
+}
+function initAdminChart() {
+  const c = Chart.getChart('admin-chart'); if(c) c.destroy();
+  const days = [];
+  for(let i=13;i>=0;i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toLocaleDateString('en',{day:'numeric',month:'short'}));
+  }
+  new Chart(document.getElementById('admin-chart'), {
+    type:'line',
+    data:{labels:days, datasets:[
+      {label:'Requests',data:[2100,2400,1900,2800,3200,2700,3800,3100,4200,3700,4800,4100,5200,4700],
+        borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,.08)',tension:.4,fill:true,pointRadius:0,borderWidth:2},
+    ]},
+    options:{plugins:{legend:{display:false}},scales:{
+      x:{display:true,ticks:{color:'#555',font:{size:10}}},
+      y:{display:true,ticks:{color:'#555',font:{size:10}}},
+    },animation:false,responsive:true,maintainAspectRatio:false}
+  });
+}
+
+// ═══════════════════════════════════════════════
+// MISC UI
+// ═══════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+function toggleTheme() {
+  S.lightMode = !S.lightMode;
+  document.getElementById('app').classList.toggle('light', S.lightMode);
+  document.getElementById('theme-btn').textContent = S.lightMode ? '☀️' : '🌙';
+}
+
+// ═══════════════════════════════════════════════
+// MARKDOWN PARSER
+// ═══════════════════════════════════════════════
+function parseMarkdown(text) {
+  if(!text) return '';
+  const blocks = [];
+  text = text.replace(/```(\w*)?\n?([\s\S]*?)```/g, (_,lang,code) => {
+    const i = blocks.length;
+    blocks.push('<pre><code>'+code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</code></pre>');
+    return '\x00BLK'+i+'\x00';
+  });
+  text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  text = text.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  text = text.replace(/\*\*\*([^*\n]+)\*\*\*/g,'<strong><em>$1</em></strong>');
+  text = text.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  text = text.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  const lines = text.split('\n'), out = [];
+  let inUl=false, inOl=false;
+  for(const raw of lines) {
+    const line = raw.trim();
+    if(/^### /.test(line)){ out.push('<h3>'+line.slice(4)+'</h3>'); continue; }
+    if(/^## /.test(line)){ out.push('<h2>'+line.slice(3)+'</h2>'); continue; }
+    if(/^# /.test(line)){ out.push('<h1>'+line.slice(2)+'</h1>'); continue; }
+    const ulM = line.match(/^[-*] (.+)/);
+    const olM = line.match(/^\d+[.)]\s(.+)/);
+    if(ulM){ if(!inUl){out.push('<ul>');inUl=true;} out.push('<li>'+ulM[1]+'</li>'); }
+    else if(olM){ if(!inOl){out.push('<ol>');inOl=true;} out.push('<li>'+olM[1]+'</li>'); }
+    else{
+      if(inUl){out.push('</ul>');inUl=false;}
+      if(inOl){out.push('</ol>');inOl=false;}
+      if(line===''){out.push('<br>');}
+      else if(/^\x00BLK/.test(line)){out.push(line);}
+      else{out.push('<p>'+raw+'</p>');}
+    }
+  }
+  if(inUl)out.push('</ul>'); if(inOl)out.push('</ol>');
+  let r = out.join('');
+  r = r.replace(/\x00BLK(\d+)\x00/g,(_,i)=>blocks[+i]);
+  return r;
+}
+</script>
+</body>
+</html>
