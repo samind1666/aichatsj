@@ -124,6 +124,10 @@
     <div class="login-logo">⚡ AI Chat Pro</div>
     <div class="login-sub">Admin Panel</div>
     <div>
+      <label>Worker URL</label>
+      <input id="loginWorkerUrl" type="text" placeholder="https://your-worker.workers.dev">
+    </div>
+    <div style="margin-top:12px">
       <label>Email</label>
       <input id="loginEmail" type="email" value="admin@aichat.com" placeholder="admin@aichat.com">
     </div>
@@ -268,6 +272,8 @@ let settingsData = {};
 
 // ── Init ────────────────────────────────────────────────────
 (async () => {
+  const savedUrl = localStorage.getItem('workerUrl') || '';
+  if (savedUrl) document.getElementById('loginWorkerUrl').value = savedUrl;
   if (TOKEN) {
     try {
       const r = await apiFetch('/api/auth/me');
@@ -286,7 +292,8 @@ function showAdmin() {
 
 // ── API helper ───────────────────────────────────────────────
 async function apiFetch(path, opts = {}) {
-  const url = API + path;
+  const base = localStorage.getItem('workerUrl') || '';
+  const url = base + path;
   const headers = { 'Content-Type': 'application/json' };
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
   const r = await fetch(url, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
@@ -297,14 +304,14 @@ async function apiFetch(path, opts = {}) {
 
 // ── Login ────────────────────────────────────────────────────
 async function doLogin() {
+  const workerUrl = document.getElementById('loginWorkerUrl').value.trim().replace(/\/$/, '');
   const email = document.getElementById('loginEmail').value;
   const pass = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginErr');
   errEl.style.display = 'none';
+  if (!workerUrl) { errEl.textContent = 'Enter your Worker URL'; errEl.style.display = 'block'; return; }
+  localStorage.setItem('workerUrl', workerUrl);
   try {
-    // Check if worker URL needs to be set
-    const workerUrl = prompt('Enter your Worker URL (e.g. https://aichat-worker.xyz.workers.dev):', API);
-    if (workerUrl) { localStorage.setItem('workerUrl', workerUrl); location.reload(); return; }
     const d = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
     if (d.user.role !== 'admin') { errEl.textContent = 'Not an admin account'; errEl.style.display = 'block'; return; }
     TOKEN = d.token;
@@ -565,3 +572,4 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
